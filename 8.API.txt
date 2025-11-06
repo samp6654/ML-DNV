@@ -1,0 +1,130 @@
+# Import necessary Python libraries
+import requests               # Used to send HTTP requests to the API
+import pandas as pd            # Used for data handling and analysis
+import matplotlib.pyplot as plt # Used for visualizing data (plots, charts)
+
+# Step 1: Enter your API key (replace with your actual key)
+# ----------------------------------------------------------
+# The API key authenticates your request with OpenWeatherMap.
+# Without a valid key, you cannot access the API data.
+api_key = "e9b5cb6e6f9318669a5afcc20b220d4f"
+
+# Step 2: Set city name and API endpoint (5-day/3-hour forecast)
+# --------------------------------------------------------------
+# 'city' defines the location for which you want weather data.
+# The API URL is built dynamically using an f-string.
+# Parameters:
+# - q = city name
+# - appid = your API key
+# - units = metric (to get temperature in Celsius)
+city = "Pune"
+url = f"http://api.openweathermap.org/data/2.5/forecast?q={city}&appid={api_key}&units=metric"
+
+# Step 3: Send request to OpenWeatherMap API
+# ------------------------------------------
+# The requests.get() function sends a GET request to the API endpoint.
+# The API responds with weather data in JSON format.
+response = requests.get(url)
+
+# Convert the JSON response into a Python dictionary for easy processing.
+data = response.json()
+
+# Step 4: Extract relevant weather attributes
+# -------------------------------------------
+# The JSON response contains nested data. We extract only the required fields:
+# - DateTime (time of weather data)
+# - Temperature (in °C)
+# - Humidity (percentage)
+# - WindSpeed (in meters/second)
+# - Weather description (text like 'clear sky', 'rain', etc.)
+weather_data = []
+for item in data['list']:
+    weather_data.append({
+        'DateTime': item['dt_txt'],
+        'Temperature': item['main']['temp'],
+        'Humidity': item['main']['humidity'],
+        'WindSpeed': item['wind']['speed'],
+        'Weather': item['weather'][0]['description']
+    })
+
+# Step 5: Convert to DataFrame
+# -----------------------------
+# Convert the extracted list of dictionaries into a pandas DataFrame.
+# This tabular format makes it easier to clean, analyze, and visualize.
+df = pd.DataFrame(weather_data)
+
+# Step 6: Clean and preprocess data
+# ---------------------------------
+# Convert DateTime from string to proper datetime format.
+# This enables time-based analysis and plotting.
+df['DateTime'] = pd.to_datetime(df['DateTime'])
+
+# Remove any rows with missing or invalid data to ensure accuracy.
+df.dropna(inplace=True)
+
+# Step 7: Perform basic analysis
+# -------------------------------
+# Calculate some key weather statistics:
+# - Average temperature (mean)
+# - Maximum temperature (max)
+# - Minimum temperature (min)
+avg_temp = df['Temperature'].mean()
+max_temp = df['Temperature'].max()
+min_temp = df['Temperature'].min()
+
+# Print the calculated statistics with 2 decimal places for readability.
+print("Average Temperature:", round(avg_temp, 2))
+print("Maximum Temperature:", round(max_temp, 2))
+print("Minimum Temperature:", round(min_temp, 2))
+
+# Step 8: Visualize weather data
+# -------------------------------
+# Visualization 1: Temperature trend over time
+# A line plot is ideal for showing temperature variations.
+plt.figure(figsize=(10,5))
+plt.plot(df['DateTime'], df['Temperature'], label='Temperature (°C)', color='red')
+plt.title(f"Temperature Trend in {city}")
+plt.xlabel("Date & Time")
+plt.ylabel("Temperature (°C)")
+plt.legend()
+plt.grid(True)
+plt.show()
+
+# Visualization 2: Humidity levels over time
+# A bar chart helps visualize humidity fluctuations.
+plt.figure(figsize=(10,5))
+plt.bar(df['DateTime'], df['Humidity'], color='skyblue')
+plt.title(f"Humidity Levels in {city}")
+plt.xlabel("Date & Time")
+plt.ylabel("Humidity (%)")
+plt.xticks(rotation=45)  # Rotates date labels for better readability
+plt.show()
+
+# Visualization 3: Wind speed variation
+# Another line plot to represent changes in wind speed.
+plt.figure(figsize=(10,5))
+plt.plot(df['DateTime'], df['WindSpeed'], label='Wind Speed (m/s)', color='green')
+plt.title(f"Wind Speed Variation in {city}")
+plt.xlabel("Date & Time")
+plt.ylabel("Wind Speed (m/s)")
+plt.legend()
+plt.grid(True)
+plt.show()
+
+# Step 9: Correlation analysis between attributes
+# ------------------------------------------------
+# A correlation matrix shows how weather parameters relate to each other.
+# Example: Does temperature decrease when humidity increases?
+correlation = df[['Temperature', 'Humidity', 'WindSpeed']].corr()
+print("\nCorrelation Matrix:\n", correlation)
+
+
+# This marks the end of the code. The program successfully:
+# - Connected to a web API
+# - Extracted and cleaned data
+# - Performed analysis
+# - Visualized weather trends
+# - Studied relationships between attributes
+
+
+'''Interacting with Web APIs Problem Statement: Analyzing Weather Data from OpenWeatherMap API Dataset: Weather data retrieved from OpenWeatherMap API Description: The goal is to interact with the OpenWeatherMap API to retrieve weather data for a specific location and perform data modeling and visualization to analyze weather patterns over time. Tasks to Perform: 1. Register and obtain API key from OpenWeatherMap. 2. Interact with the OpenWeatherMap API using the API key to retrieve weather data for a specific location. 3. Extract relevant weather attributes such as temperature, humidity, wind speed, and precipitation from the API response. 4. Clean and preprocess the retrieved data, handling missing values or inconsistent formats. 5. Perform data modeling to analyze weather patterns, such as calculating average temperature, maximum/minimum values, or trends over time. 6. Visualize the weather data using appropriate plots, such as line charts, bar plots, or scatter plots, to represent temperature changes, precipitation levels, or wind speed variations. 7. Apply data aggregation techniques to summarize weather statistics by specific time periods (e.g., daily, monthly, seasonal). 8. Incorporate geographical information, if available, to create maps or geospatial visualizations representing weather patterns across different locations. 9. Explore and visualize relationships between weather attributes, such as temperature and humidity, using correlation plots or heatmaps. '''
