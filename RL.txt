@@ -1,0 +1,164 @@
+# Cell 1: imports
+import numpy as np
+import random
+import matplotlib.pyplot as plt
+from collections import defaultdict
+
+# Cell 2: Maze environment
+class MazeEnv:
+    def __init__(self, grid):
+        self.grid = np.array(grid)
+        self.nrows, self.ncols = self.grid.shape
+        self.start = tuple(map(int, np.argwhere(self.grid == 2)[0]))
+        self.goal = tuple(map(int, np.argwhere(self.grid == 3)[0]))
+        self.reset()
+
+    def reset(self):
+        self.agent_pos = self.start
+        return self._pos_to_state(self.agent_pos)
+
+    def _pos_to_state(self, pos):
+        r, c = pos
+        return r * self.ncols + c
+
+    def _state_to_pos(self, s):
+        return (s // self.ncols, s % self.ncols)
+
+    def available_actions(self, state=None):
+        return [0,1,2,3]
+
+    def step(self, action):
+        r, c = self.agent_pos
+        if action == 0:
+            nr, nc = r - 1, c
+        elif action == 1:
+            nr, nc = r, c + 1
+        elif action == 2:
+            nr, nc = r + 1, c
+        elif action == 3:
+            nr, nc = r, c - 1
+        else:
+            raise ValueError("Invalid action")
+
+        if 0 <= nr < self.nrows and 0 <= nc < self.ncols and self.grid[nr, nc] != 1:
+            self.agent_pos = (nr, nc)
+
+        done = (self.agent_pos == self.goal)
+        reward = 1.0 if done else -0.01
+        return self._pos_to_state(self.agent_pos), reward, done, {}
+
+    def render(self, path=None):
+        display = []
+        for r in range(self.nrows):
+            row = []
+            for c in range(self.ncols):
+                if self.grid[r,c] == 1:
+                    row.append('#')
+                elif (r,c) == self.agent_pos:
+                    row.append('A')
+                elif (r,c) == self.start:
+                    row.append('S')
+                elif (r,c) == self.goal:
+                    row.append('G')
+                elif path and (r,c) in path:
+                    row.append('.')
+                else:
+                    row.append(' ')
+            display.append(row)
+        print('\n'.join(''.join(ch for ch in row) for row in display))
+
+# Cell 3: QAgent (tabular Q-learning)
+class QAgent:
+    def __init__(self, n_states, n_actions, alpha=0.5, gamma=0.99, epsilon=0.2):
+        self.n_states = n_states
+        self.n_actions = n_actions
+        self.Q = np.zeros((n_states, n_actions))
+        self.alpha = alpha
+        self.gamma = gamma
+        self.epsilon = epsilon
+
+    def choose_action(self, state, greedy=False):
+        if not greedy and random.random() < self.epsilon:
+            return random.randrange(self.n_actions)
+        qvals = self.Q[state]
+        maxv = qvals.max()
+        choices = np.flatnonzero(qvals == maxv)
+        return int(np.random.choice(choices))
+
+    def update(self, s, a, r, s_next, done):
+        if done:
+            target = r
+        else:
+            target = r + self.gamma * np.max(self.Q[s_next])
+        self.Q[s,a] += self.alpha * (target - self.Q[s,a])
+
+    def decay_epsilon(self, rate):
+        self.epsilon *= rate
+
+# Cell 4: training loop
+def train(agent, env, episodes=2000, max_steps=200, epsilon_decay=0.995, verbose=False):
+    rewards_history = []
+    for ep in range(1, episodes+1):
+        s = env.reset()
+        total_r = 0.0
+        done = False
+        for step in range(max_steps):
+            a = agent.choose_action(s)
+            s_next, r, done, _ = env.step(a)
+            agent.update(s, a, r, s_next, done)
+            s = s_next
+            total_r += r
+            if done:
+                break
+        agent.decay_epsilon(epsilon_decay)
+        rewards_history.append(total_r)
+        if verbose and ep % (episodes//5) == 0:
+            print(f"Episode {ep}/{episodes} - reward {total_r:.3f}, epsilon {agent.epsilon:.3f}")
+    return rewards_history
+
+# Cell 5: define a simple maze, train and plot
+maze = [
+    [1,1,1,1,1,1,1],
+    [1,2,0,0,0,3,1],
+    [1,0,1,0,1,0,1],
+    [1,0,1,0,0,0,1],
+    [1,0,0,0,1,0,1],
+    [1,1,1,1,1,1,1],
+]
+
+env = MazeEnv(maze)
+n_states = env.nrows * env.ncols
+n_actions = 4
+
+agent = QAgent(n_states, n_actions, alpha=0.6, gamma=0.99, epsilon=0.4)
+
+history = train(agent, env, episodes=5000, max_steps=200, epsilon_decay=0.997, verbose=True)
+
+window = 50
+movavg = np.convolve(history, np.ones(window)/window, mode='valid')
+plt.plot(movavg)
+plt.title("Moving average reward (window=50)")
+plt.xlabel("Episode")
+plt.ylabel("Reward")
+plt.show()
+
+# Cell 6: evaluate greedy policy and show path
+def get_greedy_path(agent, env, max_steps=200):
+    s = env.reset()
+    path = [env.agent_pos]
+    done = False
+    for _ in range(max_steps):
+        a = agent.choose_action(s, greedy=True)
+        s_next, r, done, _ = env.step(a)
+        pos = env._state_to_pos(s_next)
+        path.append(pos)
+        s = s_next
+        if done:
+            break
+    return path, done
+
+agent.epsilon = 0.0
+path, reached = get_greedy_path(agent, env)
+print("Reached goal?", reached)
+env.render(path=path)
+print("\nPath (row,col):", path)

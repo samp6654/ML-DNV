@@ -1,0 +1,85 @@
+
+
+# Import Required Libraries
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns  # for better styling
+plt.style.use('seaborn-v0_8')
+
+#  Import the Dataset
+df = pd.read_csv("City_Air_Quality.csv")
+
+# Display the first few rows
+print("Preview of the dataset:")
+display(df.head())
+
+# Explore the dataset
+print("\nDataset Info:")
+df.info()
+
+print("\nStatistical Summary:")
+display(df.describe())
+
+# Convert 'Date' column to datetime (if not already)
+df['Date'] = pd.to_datetime(df['Date'])
+
+# Sort by date
+df = df.sort_values(by='Date')
+
+# Identify relevant variables
+# Assuming dataset has columns like:
+# Date, Time, PM2.5, PM10, CO, AQI
+print("\nColumns in dataset:")
+print(df.columns)
+
+# Line Plot – AQI trend over time
+plt.figure(figsize=(10,5))
+plt.plot(df['Date'], df['AQI'], color='darkred', linewidth=2)
+plt.title("Overall AQI Trend Over Time", fontsize=14, fontweight='bold')
+plt.xlabel("Date")
+plt.ylabel("Air Quality Index (AQI)")
+plt.grid(True)
+plt.show()
+
+#  Line Plots – Pollutant trends over time
+pollutants = ['PM2.5', 'PM10', 'CO']  # change if dataset has different pollutant columns
+
+plt.figure(figsize=(12,6))
+for pollutant in pollutants:
+    plt.plot(df['Date'], df[pollutant], label=pollutant, linewidth=2)
+plt.title("Pollutant Level Trends Over Time", fontsize=14, fontweight='bold')
+plt.xlabel("Date")
+plt.ylabel("Pollutant Level")
+plt.legend()
+plt.grid(True)
+plt.show()
+
+# Bar Plot – Compare AQI across different time periods
+plt.figure(figsize=(12,6))
+plt.bar(df['Date'], df['AQI'], color='teal')
+plt.title("AQI Comparison Across Dates", fontsize=14, fontweight='bold')
+plt.xlabel("Date")
+plt.ylabel("AQI Value")
+plt.xticks(rotation=45)
+plt.show()
+
+
+#  Box Plot – Distribution of AQI values
+plt.figure(figsize=(8,6))
+sns.boxplot(y=df['AQI'], color='lightblue')
+plt.title("Distribution of AQI Values", fontsize=14, fontweight='bold')
+plt.ylabel("AQI Value")
+plt.show()
+
+
+#  Scatter Plot – Relationship between AQI and Pollutant Levels
+plt.figure(figsize=(8,6))
+plt.scatter(df['PM2.5'], df['AQI'], color='crimson', alpha=0.6)
+plt.title("Relationship between PM2.5 and AQI", fontsize=14, fontweight='bold')
+plt.xlabel("PM2.5 Level")
+plt.ylabel("AQI")
+plt.grid(True)
+plt.show()
+
+
+print("\n Visualization complete! You have successfully analyzed AQI trends.")

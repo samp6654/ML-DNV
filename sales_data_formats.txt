@@ -1,0 +1,124 @@
+
+# Import required libraries
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+
+
+# ⿡ Read CSV file
+df_csv = pd.read_csv("Sample - Superstore.csv", encoding='latin1')
+
+# ⿢ Convert CSV file into Excel and JSON formats
+df_csv.to_excel("superstore.xlsx", index=False)
+df_csv.to_json("superstore.json", orient='records')
+
+# ⿣ Re-import data from all formats
+df_csv = pd.read_csv("Sample - Superstore.csv", encoding='latin1')
+df_excel = pd.read_excel("superstore.xlsx")
+df_json = pd.read_json("superstore.json")
+
+# Display previews to confirm loading
+print("✅ CSV Data Preview:\n", df_csv.head())
+print("\n✅ Excel Data Preview:\n", df_excel.head())
+print("\n✅ JSON Data Preview:\n", df_json.head())
+
+
+print("\n--- Data Info and Summary ---")
+print("CSV Info:\n")
+df_csv.info()
+print("\nExcel Info:\n")
+df_excel.info()
+print("\nJSON Info:\n")
+df_json.info()
+
+print("\n--- Checking for Missing Values ---")
+print("CSV Missing Values:\n", df_csv.isnull().sum())
+print("\nExcel Missing Values:\n", df_excel.isnull().sum())
+print("\nJSON Missing Values:\n", df_json.isnull().sum())
+
+
+# Fill missing values with 0
+df_csv.fillna(0, inplace=True)
+df_excel.fillna(0, inplace=True)
+df_json.fillna(0, inplace=True)
+
+# Remove duplicate records
+df_csv.drop_duplicates(inplace=True)
+df_excel.drop_duplicates(inplace=True)
+df_json.drop_duplicates(inplace=True)
+
+
+# Combine all datasets into one DataFrame
+df_combined = pd.concat([df_csv, df_excel, df_json], ignore_index=True)
+
+print("\n✅ Unified DataFrame Shape:", df_combined.shape)
+print(df_combined.head())
+
+
+# Convert 'Order Date' to datetime format
+df_combined['Order Date'] = pd.to_datetime(df_combined['Order Date'], errors='coerce')
+
+# Derive new column: Total Sales = Quantity × Sales
+df_combined['TotalSales'] = df_combined['Quantity'] * df_combined['Sales']
+
+# Extract Month and Year from Order Date
+df_combined['Month'] = df_combined['Order Date'].dt.month
+df_combined['Year'] = df_combined['Order Date'].dt.year
+
+
+print("\n--- DESCRIPTIVE STATISTICS ---")
+print(df_combined.describe())
+
+# Total and Average Sales
+total_sales = df_combined['TotalSales'].sum()
+avg_sales = df_combined['TotalSales'].mean()
+print("\nTotal Sales:", round(total_sales, 2))
+print("Average Order Value:", round(avg_sales, 2))
+
+# Sales by Category
+sales_by_category = df_combined.groupby('Category')['TotalSales'].sum()
+print("\nSales by Category:\n", sales_by_category)
+
+# Top 5 Sub-Categories by Sales
+top_subcat = df_combined.groupby('Sub-Category')['TotalSales'].sum().sort_values(ascending=False).head(5)
+print("\nTop 5 Sub-Categories by Sales:\n", top_subcat)
+
+
+
+# Bar Chart – Total Sales by Category
+plt.figure(figsize=(8,5))
+sales_by_category.plot(kind='bar')
+plt.title("Total Sales by Category")
+plt.xlabel("Category")
+plt.ylabel("Total Sales")
+plt.grid(True)
+plt.tight_layout()
+plt.show()
+
+# Pie Chart – Top 5 Sub-Category Sales Share
+plt.figure(figsize=(6,6))
+top_subcat.plot(kind='pie', autopct='%1.1f%%')
+plt.title("Top 5 Sub-Category Sales Share")
+plt.ylabel("")
+plt.tight_layout()
+plt.show()
+
+# Box Plot – Sales Distribution
+plt.figure(figsize=(6,4))
+plt.boxplot(df_combined['TotalSales'])
+plt.title("Box Plot of Total Sales")
+plt.ylabel("Sales Amount")
+plt.tight_layout()
+plt.show()
+
+# Line Plot – Monthly Sales Trend
+monthly_sales = df_combined.groupby('Month')['TotalSales'].sum()
+plt.figure(figsize=(8,5))
+monthly_sales.plot(kind='line', marker='o')
+plt.title("Monthly Sales Trend")
+plt.xlabel("Month")
+plt.ylabel("Total Sales")
+plt.grid(True)
+plt.tight_layout()
+plt.show()
+

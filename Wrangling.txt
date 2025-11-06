@@ -1,0 +1,82 @@
+# Cell 1: Import Libraries
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# Cell 2: Load the dataset
+df = pd.read_csv("RealEstate_Prices.csv")
+
+# Display first 5 rows
+print("✅ Dataset Loaded Successfully!\n")
+df.head()
+
+# Cell 3: Clean column names (remove spaces, special chars)
+df.columns = df.columns.str.strip().str.replace(' ', '_').str.replace('[^A-Za-z0-9_]+', '', regex=True)
+print("🧹 Cleaned Column Names:\n", df.columns.tolist())
+
+# Cell 4: Handle missing values
+print("🔍 Missing Values Before:\n", df.isnull().sum())
+
+# Example strategies:
+# 1. Fill numeric columns with median
+for col in df.select_dtypes(include=np.number):
+    df[col].fillna(df[col].median(), inplace=True)
+
+# 2. Fill categorical columns with mode
+for col in df.select_dtypes(include='object'):
+    df[col].fillna(df[col].mode()[0], inplace=True)
+
+print("\n✅ Missing Values After:\n", df.isnull().sum())
+
+# Cell 6: Filter and subset data
+# Example: Only include properties sold after 2015
+if 'Year_Sold' in df.columns:
+    df = df[df['Year_Sold'] >= 2015]
+
+# Example: Filter only "Apartment" type properties
+if 'Property_Type' in df.columns:
+    df = df[df['Property_Type'].str.lower() == 'apartment']
+
+print("✅ Filtered dataset shape:", df.shape)
+
+# Cell 7: Handle categorical variables
+from sklearn.preprocessing import LabelEncoder
+
+# Identify categorical columns
+cat_cols = df.select_dtypes(include='object').columns
+
+# Apply label encoding for simplicity
+encoder = LabelEncoder()
+for col in cat_cols:
+    df[col] = encoder.fit_transform(df[col])
+
+print("✅ Encoded categorical columns:", cat_cols.tolist())
+
+# Cell 8: Aggregate data for insights
+if 'Neighborhood' in df.columns and 'Sale_Price' in df.columns:
+    avg_price = df.groupby('Neighborhood')['Sale_Price'].mean().sort_values(ascending=False)
+    print("🏘️ Average Sale Price by Neighborhood:\n", avg_price.head())
+
+    # Plot
+    plt.figure(figsize=(10,5))
+    avg_price.head(10).plot(kind='bar', color='skyblue')
+    plt.title("Top 10 Neighborhoods by Average Sale Price")
+    plt.ylabel("Average Price")
+    plt.show()
+
+# Cell 9: Identify and handle outliers (using IQR)
+numeric_cols = df.select_dtypes(include=np.number).columns
+
+for col in numeric_cols:
+    Q1 = df[col].quantile(0.25)
+    Q3 = df[col].quantile(0.75)
+    IQR = Q3 - Q1
+    lower, upper = Q1 - 1.5*IQR, Q3 + 1.5*IQR
+    df = df[(df[col] >= lower) & (df[col] <= upper)]
+
+print("✅ Outliers handled. Final dataset shape:", df.shape)
+
+# Cell 10: Export cleaned dataset
+df.to_csv("Cleaned_RealEstate_Prices.csv", index=False)
+print("💾 Cleaned dataset saved as 'Cleaned_RealEstate_Prices.csv'")

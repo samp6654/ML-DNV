@@ -1,0 +1,94 @@
+
+
+# Import Required Libraries
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# Set Seaborn style
+plt.style.use('seaborn-v0_8')
+sns.set_palette("Set2")
+
+# Import the Dataset
+df = pd.read_csv("Retail_Sales_Data.csv")
+
+# Display first few rows
+print("Preview of the dataset:")
+display(df.head())
+
+# Explore the dataset
+print("\nDataset Info:")
+df.info()
+
+print("\nStatistical Summary:")
+display(df.describe())
+
+print("\nColumns available:")
+print(df.columns)
+
+# Identify relevant variables
+# We'll assume the dataset has these columns:
+# 'Region', 'Transaction_Date', 'Product_Category', 'Quantity_Sold', 'Sales_Amount'
+# If names differ, adjust accordingly.
+
+# Check for missing values
+print("\nMissing values in each column:")
+print(df.isnull().sum())
+
+# Group sales data by Region and calculate total sales
+sales_by_region = df.groupby('Region')['Sales_Amount'].sum().reset_index().sort_values(by='Sales_Amount', ascending=False)
+
+print("\nTotal Sales Amount by Region:")
+display(sales_by_region)
+
+# Visualization – Bar Plot for Sales by Region
+plt.figure(figsize=(10,6))
+sns.barplot(data=sales_by_region, x='Region', y='Sales_Amount', palette='viridis')
+plt.title("Total Sales Amount by Region", fontsize=14, fontweight='bold')
+plt.xlabel("Region")
+plt.ylabel("Total Sales Amount")
+plt.xticks(rotation=45)
+plt.tight_layout()
+plt.show()
+
+# Pie Chart for Regional Sales Distribution
+plt.figure(figsize=(8,8))
+plt.pie(sales_by_region['Sales_Amount'], labels=sales_by_region['Region'], autopct='%1.1f%%', startangle=90, colors=sns.color_palette("Set2"))
+plt.title("Sales Distribution by Region", fontsize=14, fontweight='bold')
+plt.show()
+
+# Identify Top-Performing Regions
+top_regions = sales_by_region.head(3)
+print("\nTop Performing Regions (by Total Sales Amount):")
+display(top_regions)
+
+#  Group by Region and Product Category
+sales_region_category = df.groupby(['Region', 'Product_Category'])['Sales_Amount'].sum().reset_index()
+
+print("\nTotal Sales Amount by Region and Product Category:")
+display(sales_region_category.head())
+
+# Visualization – Stacked Bar Plot (Sales by Region & Product Category)
+pivot_data = sales_region_category.pivot(index='Region', columns='Product_Category', values='Sales_Amount').fillna(0)
+
+pivot_data.plot(kind='bar', stacked=True, figsize=(12,6), colormap='tab20')
+plt.title("Stacked Bar Chart: Sales by Region and Product Category", fontsize=14, fontweight='bold')
+plt.xlabel("Region")
+plt.ylabel("Total Sales Amount")
+plt.xticks(rotation=45)
+plt.legend(title="Product Category")
+plt.tight_layout()
+plt.show()
+
+#  Grouped Bar Plot (alternative view)
+plt.figure(figsize=(12,6))
+sns.barplot(data=sales_region_category, x='Region', y='Sales_Amount', hue='Product_Category')
+plt.title("Grouped Bar Plot: Sales by Region and Product Category", fontsize=14, fontweight='bold')
+plt.xlabel("Region")
+plt.ylabel("Total Sales Amount")
+plt.xticks(rotation=45)
+plt.legend(title='Product Category')
+plt.tight_layout()
+plt.show()
+
+print("\n Data aggregation and visualization completed successfully!")

@@ -1,0 +1,153 @@
+import requests
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# For date/time handling
+from datetime import datetime, timedelta
+
+# For maps/geospatial
+import geopandas as gpd
+import contextily as ctx
+
+# Your API key (replace 'YOUR_API_KEY' with your actual key)
+API_KEY = "YOUR_API_KEY"
+
+# Base URL for current weather (you could use forecast/historical too)
+BASE_URL = "https://api.openweathermap.org/data/2.5/weather"
+
+# Use metric units (Celsius, m/s etc)
+UNITS = "metric"
+
+def fetch_weather_for_city(city_name, country_code=None):
+    """Fetch current weather data for a given city (and optional country code)."""
+    q = city_name if country_code is None else f"{city_name},{country_code}"
+    params = {
+        "q": q,
+        "appid": API_KEY,
+        "units": UNITS
+    }
+    response = requests.get(BASE_URL, params=params)
+    response.raise_for_status()
+    data = response.json()
+    # Extract relevant fields
+    result = {
+        "city": data.get("name"),
+        "lat": data["coord"]["lat"],
+        "lon": data["coord"]["lon"],
+        "temp": data["main"]["temp"],
+        "temp_min": data["main"].get("temp_min"),
+        "temp_max": data["main"].get("temp_max"),
+        "humidity": data["main"]["humidity"],
+        "wind_speed": data["wind"]["speed"],
+        "wind_deg": data["wind"].get("deg"),
+        "pressure": data["main"].get("pressure"),
+        "weather_main": data["weather"][0]["main"],
+        "weather_desc": data["weather"][0]["description"],
+        "timestamp": datetime.utcfromtimestamp(data["dt"])
+    }
+    # Precipitation info (may or may not exist)
+    rain_1h = data.get("rain", {}).get("1h", 0.0)
+    result["rain_1h"] = rain_1h
+    return result
+
+# Example usage:
+city_data = fetch_weather_for_city("Pune", "IN")
+print(city_data)
+
+# Example: fetch weather every hour (or every day) for a location for some period
+# For demonstration we loop for a few times with delays (or assume we store historical data)
+records = []
+cities = [("Pune","IN"), ("Mumbai","IN"), ("Delhi","IN")]  # you can expand list
+
+for city, country in cities:
+    rec = fetch_weather_for_city(city, country)
+    records.append(rec)
+
+df = pd.DataFrame(records)
+print("Raw collected data:")
+display(df.head())
+
+# Convert timestamp to proper datetime and set index
+df["timestamp"] = pd.to_datetime(df["timestamp"])
+df = df.set_index("timestamp")
+
+# Handling missing values (just an example)
+df.fillna(method="ffill", inplace=True)  # forward fill
+df.fillna(method="bfill", inplace=True)  # backward fill
+
+# Remove duplicates if any
+df = df[~df.index.duplicated(keep="first")]
+
+print("Cleaned data info:")
+display(df.info())
+
+# Example statistics
+print("Average temperature:", df["temp"].mean())
+print("Min temperature:", df["temp"].min())
+print("Max temperature:", df["temp"].max())
+
+# Trend over time (if we have time series)
+temp_trend = df["temp"].resample("D").mean()  # daily average
+print("Daily average temperatures:")
+display(temp_trend.head())
+
+plt.figure(figsize=(10,5))
+plt.plot(df.index, df["temp"], label="Temperature (°C)")
+plt.plot(df.index, df["humidity"], label="Humidity (%)")
+plt.title("Temperature & Humidity over Time")
+plt.xlabel("Timestamp")
+plt.ylabel("Value")
+plt.legend()
+plt.show()
+
+# Scatter plot of temp vs humidity
+plt.figure(figsize=(6,6))
+sns.scatterplot(x=df["temp"], y=df["humidity"], hue=df["city"])
+plt.title("Temperature vs Humidity")
+plt.show()
+
+# Heatmap of correlations
+plt.figure(figsize=(5,4))
+sns.heatmap(df[["temp", "humidity", "wind_speed", "rain_1h"]].corr(), annot=True, cmap="coolwarm")
+plt.title("Correlation between weather attributes")
+plt.show()
+
+# Daily summary
+daily = df.resample("D").agg({
+    "temp": ["mean", "min", "max"],
+    "humidity": "mean",
+    "wind_speed": "mean",
+    "rain_1h": "sum"
+})
+daily.columns = ["_".join(col) for col in daily.columns]
+display(daily.head())
+
+# Monthly summary
+monthly = df.resample("M").agg({
+    "temp": "mean",
+    "humidity": "mean",
+    "wind_speed": "mean",
+    "rain_1h": "sum"
+})
+display(monthly.head())
+
+# Create GeoDataFrame for cities
+gdf = gpd.GeoDataFrame(df.reset_index().drop_duplicates(subset=["city"]), 
+                       geometry=gpd.points_from_xy(df["lon"].drop_duplicates(), df["lat"].drop_duplicates()),
+                       crs="EPSG:4326")
+
+# convert to Web Mercator for contextily
+gdf = gdf.to_crs(epsg=3857)
+
+ax = gdf.plot(figsize=(8,8), color="red", marker="o", markersize=50, alpha=0.7)
+#ctx.add_basemap(ax, source=ctx.providers.Stamen.TonerLite) #  will #add real background to map like roads and terrain.
+for x, y, label in zip(gdf.geometry.x, gdf.geometry.y, gdf["city"]):
+    ax.text(x+10000, y+10000, label, fontsize=10)
+plt.title("Cities Map of Weather Data")
+plt.show()
+
+sns.pairplot(df.reset_index(), vars=["temp","humidity","wind_speed","rain_1h"], hue="city", height=3)
+plt.suptitle("Pairwise Relationships between Weather Attributes", y=1.02)
+plt.show()

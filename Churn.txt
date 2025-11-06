@@ -1,0 +1,77 @@
+# Step 1: Import libraries
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+
+# Step 2: Load the dataset
+df = pd.read_csv("Telecom_Customer_Churn.csv")
+
+# Step 3: Explore dataset
+print("Shape of dataset:", df.shape)
+print("\nFirst 5 rows:\n", df.head())
+print("\nInfo:\n")
+print(df.info())
+print("\nMissing values:\n", df.isnull().sum())
+
+# Step 4: Handle missing values
+# Example: Fill numerical missing values with median and categorical with mode
+for col in df.columns:
+    if df[col].dtype == 'object':
+        df[col].fillna(df[col].mode()[0], inplace=True)
+    else:
+        df[col].fillna(df[col].median(), inplace=True)
+
+print("\nMissing values after cleaning:\n", df.isnull().sum().sum())
+
+# Step 5: Remove duplicates
+df.drop_duplicates(inplace=True)
+
+print("\nAfter removing duplicates, shape:", df.shape)
+
+# Step 6: Fix inconsistent categorical data
+# Example: standardize 'Yes', 'No', 'yes', 'no' → 'Yes', 'No'
+for col in df.select_dtypes(include='object').columns:
+    df[col] = df[col].str.strip().str.title()
+
+# Step 7: Convert columns to correct data types
+# Example: convert 'TotalCharges' to numeric if it’s object
+if 'TotalCharges' in df.columns:
+    df['TotalCharges'] = pd.to_numeric(df['TotalCharges'], errors='coerce')
+    df['TotalCharges'].fillna(df['TotalCharges'].median(), inplace=True)
+
+# Step 8: Identify and handle outliers (simple method using IQR)
+numeric_cols = df.select_dtypes(include=np.number).columns
+for col in numeric_cols:
+    Q1 = df[col].quantile(0.25)
+    Q3 = df[col].quantile(0.75)
+    IQR = Q3 - Q1
+    lower = Q1 - 1.5 * IQR
+    upper = Q3 + 1.5 * IQR
+    df[col] = np.where(df[col] < lower, lower, df[col])
+    df[col] = np.where(df[col] > upper, upper, df[col])
+
+# Step 9: Feature Engineering
+# Example: Create "TenureGroup" from "tenure" column
+if 'tenure' in df.columns:
+    df['TenureGroup'] = pd.cut(df['tenure'], bins=[0, 12, 24, 48, 60, np.inf],
+                               labels=['0-12', '12-24', '24-48', '48-60', '60+'])
+
+# Step 10: Normalize/Scale numerical features
+scaler = StandardScaler()
+scaled_cols = numeric_cols
+df[scaled_cols] = scaler.fit_transform(df[scaled_cols])
+
+# Step 11: Split dataset into train/test
+if 'Churn' in df.columns:
+    X = df.drop('Churn', axis=1)
+    y = df['Churn'].map({'Yes':1, 'No':0}) if df['Churn'].dtype == 'object' else df['Churn']
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    print("\nTraining set shape:", X_train.shape)
+    print("Testing set shape:", X_test.shape)
+else:
+    print("\n⚠️ 'Churn' column not found! Please check your dataset.")
+
+# Step 12: Export cleaned dataset
+df.to_csv("Cleaned_Telecom_Customer_Churn.csv", index=False)
+print("\n✅ Cleaned dataset exported successfully as 'Cleaned_Telecom_Customer_Churn.csv'")

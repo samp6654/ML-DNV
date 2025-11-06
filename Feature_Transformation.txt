@@ -1,0 +1,54 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+df=pd.read_csv('Wine.csv')
+
+x=df.drop('Customer_Segment', axis=1)
+
+y=df['Customer_Segment']
+
+from sklearn.model_selection import train_test_split
+
+x_train, x_test, y_train, y_test=train_test_split(x,y,test_size=.2,random_state=25)
+
+from sklearn.preprocessing import StandardScaler
+
+sc=StandardScaler()
+x_train_scaled=sc.fit_transform(x_train)
+x_test_scaled=sc.transform(x_test)
+
+from sklearn.decomposition import PCA
+
+pca=PCA(n_components=20)
+x_train_pca=pca.fit_transform(x_train_scaled)
+x_train_pca.shape
+
+x_test_pca=pca.transform(x_test_scaled)
+x_test_pca.shape
+
+#LR,RF,DT will be applicable here.
+from sklearn.linear_model import LogisticRegression
+model_lr=LogisticRegression()
+model_lr.fit(x_train_pca,y_train)
+
+y_pred=model_lr.predict(x_test_pca)
+
+from sklearn.metrics import*
+accuracy_score(y_pred,y_test)*100
+
+from sklearn.tree import DecisionTreeClassifier
+dc=DecisionTreeClassifier()
+dc.fit(x_train_pca,y_train)
+y_pred2=dc.predict(x_test_pca)
+accuracy_score(y_pred2,y_test)*100
+
+from sklearn.ensemble import RandomForestClassifier
+rfc=RandomForestClassifier()
+rfc.fit(x_train_pca,y_train)
+y_pred3=rfc.predict(x_test_pca)
+accuracy_score(y_test,y_pred3)*100
+
+
+

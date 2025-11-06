@@ -1,0 +1,76 @@
+# Import libraries
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LinearRegression, Ridge, Lasso
+from sklearn.metrics import r2_score, mean_squared_error
+import matplotlib.pyplot as plt
+
+# Load dataset
+# Replace 'uber.csv' with your dataset path
+df = pd.read_csv('uber.csv')
+
+# --- Data Preprocessing ---
+# Remove missing values
+df = df.dropna()
+
+# Extract useful time-based features (if pickup_datetime exists)
+if 'pickup_datetime' in df.columns:
+    df['pickup_datetime'] = pd.to_datetime(df['pickup_datetime'])
+    df['pickup_hour'] = df['pickup_datetime'].dt.hour
+    df['pickup_day'] = df['pickup_datetime'].dt.dayofweek
+else:
+    df['pickup_hour'] = np.random.randint(0, 24, len(df))
+    df['pickup_day'] = np.random.randint(0, 7, len(df))
+
+# Select features and target
+features = ['trip_distance_km', 'trip_duration_min', 'passenger_count', 'pickup_hour', 'pickup_day']
+X = df[features]
+y = df['price']
+
+# --- Outlier detection (simple IQR method) ---
+Q1 = y.quantile(0.25)
+Q3 = y.quantile(0.75)
+IQR = Q3 - Q1
+lower = Q1 - 1.5 * IQR
+upper = Q3 + 1.5 * IQR
+df = df[(y >= lower) & (y <= upper)]
+
+# --- Correlation ---
+print("Correlation matrix:")
+print(df[features + ['price']].corr())
+
+# --- Train-Test Split ---
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# --- Model Training ---
+lr = LinearRegression()
+ridge = Ridge(alpha=1.0)
+lasso = Lasso(alpha=0.1)
+
+lr.fit(X_train, y_train)
+ridge.fit(X_train, y_train)
+lasso.fit(X_train, y_train)
+
+# --- Predictions ---
+y_pred_lr = lr.predict(X_test)
+y_pred_ridge = ridge.predict(X_test)
+y_pred_lasso = lasso.predict(X_test)
+
+# --- Evaluation ---
+def evaluate_model(name, y_test, y_pred):
+    r2 = r2_score(y_test, y_pred)
+    rmse = np.sqrt(mean_squared_error(y_test, y_pred))
+    print(f"{name} → R2: {r2:.3f}, RMSE: {rmse:.3f}")
+
+print("\nModel Performance:")
+evaluate_model("Linear Regression", y_test, y_pred_lr)
+evaluate_model("Ridge Regression", y_test, y_pred_ridge)
+evaluate_model("Lasso Regression", y_test, y_pred_lasso)
+
+# --- Visualization ---
+plt.scatter(y_test, y_pred_lr, color='blue', alpha=0.5)
+plt.xlabel("Actual Price")
+plt.ylabel("Predicted Price")
+plt.title("Actual vs Predicted Price (Linear Regression)")
+plt.show()
